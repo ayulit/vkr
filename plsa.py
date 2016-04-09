@@ -60,7 +60,7 @@ with artm.library.MasterComponent() as master:
     ru_top_tokens_score = master.CreateTopTokensScore(class_id='@default_class')
     en_top_tokens_score = master.CreateTopTokensScore(class_id='@labels')
 
-    theta_snippet_score  = master.CreateThetaSnippetScore()
+    theta_snippet_score = master.CreateThetaSnippetScore()
 
 
     # Populate class_id and class_weight in ModelConfig

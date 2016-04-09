@@ -1,2 +1,2 @@
 # vkr
-HSE Master's Deegre Diploma
+HSE Master's Deegree Diploma

@@ -13,6 +13,18 @@ data_folder = 'train/'
 target_folder = 'plsa/'+collection_name
 csv_folder = 'csv'
 
+logs_dir = 'logs'
+bigartm_logs_dir = 'bigartm'  # BigArtm internal logs specific dir
+
+# создать папку logs_dir, если её нет
+if not os.path.exists(logs_dir):
+    os.makedirs(logs_dir)
+
+# создать папку bigartm_logs_dir, если её нет
+bigartm_logs_path = logs_dir + '/' + bigartm_logs_dir
+if not os.path.exists(bigartm_logs_path):
+    os.makedirs(bigartm_logs_path)
+
 # создать папку, если её нет
 if not os.path.exists(target_folder):
     os.makedirs(target_folder)
@@ -175,6 +187,12 @@ with artm.library.MasterComponent() as master:
 
     shutil.rmtree(target_folder)
 
+# Moving BigArtm internal logs to specific dir
+for filename in os.listdir('.'):
+    if os.path.isfile(filename) and filename.startswith('..'):
+        # If you specify the full path to the destination (not just the directory)
+        # then shutil.move will overwrite any existing file
+        shutil.move(os.path.join('.', filename), os.path.join(bigartm_logs_path, filename))
 
 
 # print 'STOP'

@@ -211,7 +211,6 @@ with artm.library.MasterComponent() as master:
 
     f = open(csv_folder + '/' + 'theta_test.csv', 'w')
 
-
     match_counter = 0                                       # счетчик сопадений предсказанной и истинной меток
 
     for j, item in enumerate(theta_matrix.item_weights):    # цикл по всем документам тета-матрицы

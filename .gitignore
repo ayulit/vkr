@@ -63,3 +63,6 @@ target/
 
 #BigArtm internal logs
 ..*
+
+#JetBrains PyCahrm xml scheme
+.idea/

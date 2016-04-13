@@ -10,18 +10,45 @@ import artm.library
 import artm.messages_pb2
 import shutil
 
+
+# ===================================================
+# Описание функций
+# ===================================================
+
+def collectionParserConfig(data_folder):
+
+    batches_found = len(glob.glob(batches_pathname))
+    if batches_found != 0:
+        shutil.rmtree(target_folder)
+
+    collection_parser_config = artm.messages_pb2.CollectionParserConfig()
+    collection_parser_config.format = artm.library.CollectionParserConfig_Format_BagOfWordsUci
+    # укзание на docword и vocab коллекции
+    collection_parser_config.docword_file_path = os.path.join(data_folder,'docword.' + collection_name + '.txt')
+    collection_parser_config.vocab_file_path = os.path.join(data_folder,'vocab.' + collection_name + '.txt')
+    collection_parser_config.target_folder = target_folder
+    collection_parser_config.dictionary_file_name = 'dictionary'
+
+    # получаем объект коллекции BigArtm: тут будет None в 0.7.1 по крайней мере
+    # так же метод ParseCollection сохраняет в target_folder на HDD batch и dictionary
+    uniqueTokens = artm.library.Library().ParseCollection(collection_parser_config)
+
+    return uniqueTokens
+
+
 # ===================================================
 # Инициализация
 # ===================================================
-topics_num = 3                                        # число топиков для кластеризации
+topics_num = 3                                           # число топиков для кластеризации
 
-collection_name = 'banks'                             # название коллекции
-data_folder = 'train'                                 # папка с обучающей выборкой
-test_data_folder = 'test'                             # папка с тестовой выборкой
-target_folder = os.path.join('plsa',collection_name)  # папка с данными BigArtm: батч коллекции и словарь
-csv_folder = 'csv'                                    # папка для csv файлов матриц тета и фи
-logs_dir = 'logs'                                     # папка с логами
-bigartm_logs_dir = 'bigartm'                          # BigArtm internal logs specific dir
+collection_name = 'banks'                                # название коллекции
+train_data_folder = 'train'                              # папка с обучающей выборкой
+test_data_folder = 'test'                                # папка с тестовой выборкой
+target_folder = os.path.join('plsa',collection_name)     # папка с данными BigArtm: батч коллекции и словарь
+csv_folder = 'csv'                                       # папка для csv файлов матриц тета и фи
+logs_dir = 'logs'                                        # папка с логами
+bigartm_logs_dir = 'bigartm'                             # BigArtm internal logs specific dir
+batches_pathname = os.path.join(target_folder,"*.batch")
 
 # ===================================================
 # Создание папок
@@ -58,29 +85,13 @@ if os.path.islink(link_name):
     os.unlink(link_name)
 
 # ===================================================
-# TODO Конфигурация парсера ОБУЧАЮЩЕЙ коллекции - реализовать в виде функции
+# Конфигурация парсера ОБУЧАЮЩЕЙ коллекции
 # ===================================================
 
-# идет проверка на наличие какого-то батча в папке
-# TODO скорее всего batch это сохраненная модель или конфиг, позже выясним
-batches_pathname = os.path.join(target_folder,"*.batch")
-batches_found = len(glob.glob(batches_pathname))
-if batches_found != 0:
-    shutil.rmtree(target_folder)
-
-collection_parser_config = artm.messages_pb2.CollectionParserConfig()  # создание объекта конфигуратора
-collection_parser_config.format = artm.library.CollectionParserConfig_Format_BagOfWordsUci  # формат мешка слов
-# укзание на docword и vocab коллекции
-collection_parser_config.docword_file_path = os.path.join(data_folder,'docword.' + collection_name + '.txt')
-collection_parser_config.vocab_file_path = os.path.join(data_folder,'vocab.' + collection_name + '.txt')
-collection_parser_config.target_folder = target_folder
-collection_parser_config.dictionary_file_name = 'dictionary'  # имя файла словаря
-
 # Набор уникальных токенов
-unique_tokens = artm.library.Library().ParseCollection(collection_parser_config)
+unique_tokens = collectionParserConfig(train_data_folder)
 
 print "\nParsing from TRAIN textual collection: OK.\n"
-
 
 # ===================================================
 # Построение тематической модели
@@ -173,30 +184,15 @@ with artm.library.MasterComponent() as master:
     # ===================================================
 
     # ===================================================
-    # TODO Конфигурация парсера ТЕСТОВОЙ коллекции - функция
+    # Конфигурация парсера ТЕСТОВОЙ коллекции
     # ===================================================
-
-    # TODO опять таинственные батчи
-    batches_pathname = os.path.join(target_folder,"*.batch")
-    batches_found = len(glob.glob(batches_pathname))
-    if batches_found != 0:
-        shutil.rmtree(target_folder)
-
-    collection_parser_config = artm.messages_pb2.CollectionParserConfig()
-    collection_parser_config.format = artm.library.CollectionParserConfig_Format_BagOfWordsUci
-    # укзание на docword и vocab коллекции
-    collection_parser_config.docword_file_path = os.path.join(test_data_folder,'docword.' + collection_name + '.txt')
-    collection_parser_config.vocab_file_path = os.path.join(test_data_folder,'vocab.' + collection_name + '.txt')
-    collection_parser_config.target_folder = target_folder
-    collection_parser_config.dictionary_file_name = 'dictionary'
 
     # получаем объект коллекции BigArtm
     # так же метод ParseCollection сохраняет в target_folder на HDD batch и dictionary
-    unique_tokens = artm.library.Library().ParseCollection(collection_parser_config)
+    unique_tokens = collectionParserConfig(test_data_folder)
 
     print "\n\nParsing from TEST textual collection: OK.\n"
 
-    batches_pathname = os.path.join(target_folder,"*.batch")
     batches = glob.glob(batches_pathname)  # считываем все батчи с HDD в список
 
     # берем первый батч, т.к. считаем, что в target_folder больше нет,

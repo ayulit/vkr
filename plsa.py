@@ -13,33 +13,23 @@ import shutil
 # ===================================================
 # Инициализация
 # ===================================================
-topics_num = 3                           # число топиков для кластеризации
+topics_num = 3                                        # число топиков для кластеризации
 
-collection_name = 'banks'                # название коллекции
-data_folder = 'train'                   # папка с обучающей выборкой
-#target_folder = 'plsa/'+collection_name  # папка с данными BigArtm: батч коллекции и словарь
+collection_name = 'banks'                             # название коллекции
+data_folder = 'train'                                 # папка с обучающей выборкой
+test_data_folder = 'test'                             # папка с тестовой выборкой
 target_folder = os.path.join('plsa',collection_name)  # папка с данными BigArtm: батч коллекции и словарь
-
-print "target_folder=",target_folder
-
-
-
-csv_folder = 'csv'                       # папка для csv файлов матриц тета и фи
-
-logs_dir = 'logs'                        # папка с логами
-bigartm_logs_dir = 'bigartm'             # BigArtm internal logs specific dir
+csv_folder = 'csv'                                    # папка для csv файлов матриц тета и фи
+logs_dir = 'logs'                                     # папка с логами
+bigartm_logs_dir = 'bigartm'                          # BigArtm internal logs specific dir
 
 # ===================================================
 # Создание папок
 # ===================================================
 
-
-
-
 # создать папку logs_dir, если её нет
 if not os.path.exists(logs_dir):
     os.makedirs(logs_dir)
-
 
 bigartm_logs_path = os.path.join(logs_dir,bigartm_logs_dir)
 if not os.path.exists(bigartm_logs_path):
@@ -54,7 +44,6 @@ shutil.rmtree(csv_folder)
 if not os.path.exists(csv_folder):
     os.makedirs(csv_folder)
 
-
 # Moving BigArtm internal logs to specific dir
 for filename in os.listdir('./'):
     if os.path.isfile(filename) and filename.startswith('..'):
@@ -63,10 +52,10 @@ for filename in os.listdir('./'):
         shutil.move(os.path.join('./', filename), os.path.join(bigartm_logs_path, filename))
 
 # для надежности принудидельно удалим symlink на лог
+# это происходит походу только в Linux
 link_name = '..INFO'
 if os.path.islink(link_name):
     os.unlink(link_name)
-
 
 # ===================================================
 # TODO Конфигурация парсера ОБУЧАЮЩЕЙ коллекции - реализовать в виде функции
@@ -74,36 +63,24 @@ if os.path.islink(link_name):
 
 # идет проверка на наличие какого-то батча в папке
 # TODO скорее всего batch это сохраненная модель или конфиг, позже выясним
-pathname = os.path.join(target_folder,"*.batch")
-batches_found = len(glob.glob(pathname))
+batches_pathname = os.path.join(target_folder,"*.batch")
+batches_found = len(glob.glob(batches_pathname))
 if batches_found != 0:
     shutil.rmtree(target_folder)
 
 collection_parser_config = artm.messages_pb2.CollectionParserConfig()  # создание объекта конфигуратора
 collection_parser_config.format = artm.library.CollectionParserConfig_Format_BagOfWordsUci  # формат мешка слов
 # укзание на docword и vocab коллекции
-
-print "data_folder=",data_folder
-print os.path.join(data_folder,'docword.' + collection_name + '.txt')
-
 collection_parser_config.docword_file_path = os.path.join(data_folder,'docword.' + collection_name + '.txt')
 collection_parser_config.vocab_file_path = os.path.join(data_folder,'vocab.' + collection_name + '.txt')
 collection_parser_config.target_folder = target_folder
-
-print collection_parser_config.target_folder
-
 collection_parser_config.dictionary_file_name = 'dictionary'  # имя файла словаря
-
-print collection_parser_config
 
 # Набор уникальных токенов
 unique_tokens = artm.library.Library().ParseCollection(collection_parser_config)
 
-print unique_tokens
-
 print "\nParsing from TRAIN textual collection: OK.\n"
 
-#sys.exit()  # stop execution
 
 # ===================================================
 # Построение тематической модели
@@ -116,11 +93,8 @@ with artm.library.MasterComponent() as master:
     master.Reconfigure()
 
     # Создание словаря BigArtm c частотами токенов
-    #dictionary = master.CreateDictionary(unique_tokens)
-
-    master.ImportDictionary('dictionary', os.path.join(target_folder, 'dictionary'))
-
-    # print unique_tokens
+    #dictionary = master.CreateDictionary(unique_tokens) # oblsolete?
+    master.ImportDictionary('dictionary', os.path.join(target_folder, 'dictionary'))  # 0.7.1
 
     # ===================================================
     # Конфигурирование базовых показателей score
@@ -150,8 +124,8 @@ with artm.library.MasterComponent() as master:
     # Создание модели: задание числа топиков, числа внутренних итераций, применение конфигурации
     model = master.CreateModel(topics_count=topics_num, inner_iterations_count=10, config=config)
     # Инициализация модели
-    #model.Initialize(dictionary)  # Setup initial approximation for Phi matrix.
-    model.Initialize('dictionary')
+    #model.Initialize(dictionary)   # Setup initial approximation for Phi matrix. Obsolete?
+    model.Initialize('dictionary')  # 0.7.1
     # Включение показателей
     model.EnableScore(ru_top_tokens_score)
     model.EnableScore(en_top_tokens_score)
@@ -173,23 +147,24 @@ with artm.library.MasterComponent() as master:
     print "\n"
     # Вывод топа КЛАССОВ в каждом топике
     artm.library.Visualizers.PrintTopTokensScore(en_top_tokens_score.GetValue(model))
+    # TODO Вывод ... чего?
     #artm.library.Visualizers.PrintThetaSnippetScore(theta_snippet_score.GetValue(model))
 
     # ===================================================
     # Сохранение тета-матрицы (распеределение топиков по документу) ОБУЧАЮЩЕЙ выборки
     # ===================================================
 
-    theta_matrix, numpy_matrix = master.GetThetaMatrix(model, clean_cache=True)  # извлекаем тета-матрицу из модели
-    f = open(csv_folder + '/' + 'theta_train.csv', 'w')            # создаем csv для сохранения
+    # извлекаем тета-матрицу из модели
+    theta_matrix, numpy_matrix = master.GetThetaMatrix(model, clean_cache=True)  # 0.7.1
+    # создаем csv для сохранения
+    f = open(os.path.join(csv_folder,'theta_train.csv'), 'w')
 
-
-
-    for item in numpy_matrix:  # цикл по всем документам тета-матрицы
+    for item in numpy_matrix:      # цикл по всем документам тета-матрицы. 0.7.1
         str1 = ''
         # print item.value
-        for val in item:                # цикл по всем топикам документа
-          str1 = str1+str(val)+';'              # накапливаем строку, разделенную ";"
-        f.write(str1 + '\n')                  # пишем строку в csv файл
+        for val in item:             # цикл по всем топикам документа
+          str1 = str1+str(val)+';'     # накапливаем строку, разделенную ";"
+        f.write(str1 + '\n')         # пишем строку в csv файл
 
     f.close()
 
@@ -197,27 +172,22 @@ with artm.library.MasterComponent() as master:
     # Тестирование модели
     # ===================================================
 
-    data_folder = 'test/'
-    collection_name = 'banks'
-    target_folder = 'plsa/'+collection_name
-
     # ===================================================
     # TODO Конфигурация парсера ТЕСТОВОЙ коллекции - функция
     # ===================================================
 
     # TODO опять таинственные батчи
-    batches_found = len(glob.glob(target_folder + "/*.batch"))
+    batches_pathname = os.path.join(target_folder,"*.batch")
+    batches_found = len(glob.glob(batches_pathname))
     if batches_found != 0:
         shutil.rmtree(target_folder)
 
     collection_parser_config = artm.messages_pb2.CollectionParserConfig()
     collection_parser_config.format = artm.library.CollectionParserConfig_Format_BagOfWordsUci
-
-    collection_parser_config.docword_file_path = data_folder + 'docword.' + collection_name + '.txt'
-    collection_parser_config.vocab_file_path = data_folder + 'vocab.' + collection_name + '.txt'
-
+    # укзание на docword и vocab коллекции
+    collection_parser_config.docword_file_path = os.path.join(test_data_folder,'docword.' + collection_name + '.txt')
+    collection_parser_config.vocab_file_path = os.path.join(test_data_folder,'vocab.' + collection_name + '.txt')
     collection_parser_config.target_folder = target_folder
-
     collection_parser_config.dictionary_file_name = 'dictionary'
 
     # получаем объект коллекции BigArtm
@@ -226,17 +196,18 @@ with artm.library.MasterComponent() as master:
 
     print "\n\nParsing from TEST textual collection: OK.\n"
 
-    batches = glob.glob(target_folder + "/*.batch")  # считываем все батчи с HDD в список
+    batches_pathname = os.path.join(target_folder,"*.batch")
+    batches = glob.glob(batches_pathname)  # считываем все батчи с HDD в список
 
     # берем первый батч, т.к. считаем, что в target_folder больше нет,
     # т.е. первый батч и будет нужной тестовой коллекцией в формате BigArtm
     test_batch = artm.library.Library().LoadBatch(batches[0])
 
     # Применяем модель к батчу и получаем тета-матрицу тестовой выборки
-    theta_matrix, numpy_matrix = master.GetThetaMatrix(model=model, batch=test_batch)
+    theta_matrix, numpy_matrix = master.GetThetaMatrix(model=model, batch=test_batch)  # 0.7.1
 
     # путь к файлу с ручной разметкой тестовой коллекции
-    labels_file_path = data_folder + 'labels.' + collection_name + '.txt'
+    labels_file_path = os.path.join(test_data_folder,'labels.' + collection_name + '.txt')
     with open(labels_file_path) as f:
         test_y = [line.rstrip() for line in f]  # записывае метки для проверки теста в список
         f.close()
@@ -248,24 +219,18 @@ with artm.library.MasterComponent() as master:
     # Сохранение тета-матрицы (распеределение топиков по документу) ТЕСТОВОЙ выборки
     # ===================================================
 
-    f = open(csv_folder + '/' + 'theta_test.csv', 'w')
-
+    f = open(os.path.join(csv_folder,'theta_test.csv'), 'w')
 
     match_counter = 0                                       # счетчик сопадений предсказанной и истинной меток
 
-
-
-
-
-
-    for j, item in enumerate(numpy_matrix):    # цикл по всем документам тета-матрицы
+    for j, item in enumerate(numpy_matrix):    # цикл по всем документам тета-матрицы. 0.7.1
 
         str1 = ''
-        docvector=[]                                          # вектор документа тета-матрицы
+        docvector=[]                             # вектор документа тета-матрицы
         #print item.value
-        for val in item:                                # цикл по всем топикам документа
-            docvector.append(val)                               # формируем вектор документа
-            str1 = str1+str(val)+';'                            # накапливаем строку, разделенную ";"
+        for val in item:                         # цикл по всем топикам документа. 0.7.1
+            docvector.append(val)                  # формируем вектор документа
+            str1 = str1+str(val)+';'               # накапливаем строку, разделенную ";"
 
         if test_y[j] == 'label1':
             real = 1
@@ -274,26 +239,20 @@ with artm.library.MasterComponent() as master:
         elif test_y[j] == 'label0':
             real = 0
 
-        str1 = str1+str(real)+';'                               # добавляем в строку значение истинной метки класса
+        str1 = str1+str(real)+';'                # добавляем в строку значение истинной метки класса
         # TODO предсказанная метка - индекс max значения вектора ?!? Понять почему?
         predict = docvector.index(max(docvector))
-        str1 = str1+str(predict)+';'                            # добавляем в строку значение ПРЕДСКАЗАННОЙ метки класса
+        str1 = str1+str(predict)+';'             # добавляем в строку значение ПРЕДСКАЗАННОЙ метки класса
 
         if real == predict:
-            match_counter += 1                                  # при совпадении меток приращаем счетчик совпадений
-        f.write(str1 + '\n')                                    # пишем накопленную строку в файл
+            match_counter += 1                     # при совпадении меток приращаем счетчик совпадений
+        f.write(str1 + '\n')                     # пишем накопленную строку в файл
 
-    match = match_counter*1.0/len(numpy_matrix)  # считаем процент совпадений
-    f.write(str(match)+';' + '\n')                            # и выводим % совпадений в последней строке
+    match = match_counter*1.0/len(numpy_matrix)  # считаем процент совпадений. 0.7.1
+    f.write(str(match)+';' + '\n')               # и выводим % совпадений в последней строке
     f.close()
 
-    shutil.rmtree(target_folder)                              # удаляем все из целевой папки
-
-
-
-
-
-
+    shutil.rmtree(target_folder)                 # удаляем все из целевой папки
 
 
 # print 'STOP'

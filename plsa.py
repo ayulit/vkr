@@ -16,14 +16,25 @@ import shutil
 # ===================================================
 
 def collectionParserConfig(data_folder):
+    """Парсит данные коллекции и сохраняет их на HDD в специальном формате BigARTM
 
+    Args:
+        data_folder (basestring): Путь к данным.
+
+    Returns:
+        artm.messages_pb2.DictionaryConfig: Returns an instance of DictionaryConfig
+        which carry all unique words in the collection and their frequencies.
+
+    """
     batches_found = len(glob.glob(batches_pathname))
     if batches_found != 0:
         shutil.rmtree(target_folder)
 
+    print "Parsing batches from textual collection...",
+
     collection_parser_config = artm.messages_pb2.CollectionParserConfig()
     collection_parser_config.format = artm.library.CollectionParserConfig_Format_BagOfWordsUci
-    # укзание на docword и vocab коллекции
+
     collection_parser_config.docword_file_path = os.path.join(data_folder,'docword.' + collection_name + '.txt')
     collection_parser_config.vocab_file_path = os.path.join(data_folder,'vocab.' + collection_name + '.txt')
     collection_parser_config.target_folder = target_folder
@@ -32,6 +43,8 @@ def collectionParserConfig(data_folder):
     # получаем объект коллекции BigArtm: тут будет None в 0.7.1 по крайней мере
     # так же метод ParseCollection сохраняет в target_folder на HDD batch и dictionary
     uniqueTokens = artm.library.Library().ParseCollection(collection_parser_config)
+
+    print " OK."
 
     return uniqueTokens
 
@@ -90,7 +103,6 @@ if os.path.islink(link_name):
 
 # Набор уникальных токенов
 unique_tokens = collectionParserConfig(train_data_folder)
-
 print "\nParsing from TRAIN textual collection: OK.\n"
 
 # ===================================================
@@ -190,7 +202,6 @@ with artm.library.MasterComponent() as master:
     # получаем объект коллекции BigArtm
     # так же метод ParseCollection сохраняет в target_folder на HDD batch и dictionary
     unique_tokens = collectionParserConfig(test_data_folder)
-
     print "\n\nParsing from TEST textual collection: OK.\n"
 
     batches = glob.glob(batches_pathname)  # считываем все батчи с HDD в список

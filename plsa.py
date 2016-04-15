@@ -78,8 +78,11 @@ if not os.path.exists(bigartm_logs_path):
 if not os.path.exists(target_folder):
     os.makedirs(target_folder)
 
-# удалить рекурсивно содержимое? папки
-shutil.rmtree(csv_folder)
+# TODO Костыль: подправить логику
+# создать папку logs_dir, если её нет
+if os.path.exists(csv_folder):
+    # удалить рекурсивно содержимое? папки
+    shutil.rmtree(csv_folder)
 # а потом создать папку
 if not os.path.exists(csv_folder):
     os.makedirs(csv_folder)

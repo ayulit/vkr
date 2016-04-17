@@ -55,12 +55,12 @@ def collectionParserConfig(data_folder):
 topics_num = 3                                           # число топиков для кластеризации
 
 collection_name = 'banks'                                # название коллекции
-train_data_folder = 'train'                              # папка с обучающей выборкой
+train_data_folder = os.path.join('train',collection_name)                              # папка с обучающей выборкой
 test_data_folder = 'test'                                # папка с тестовой выборкой
-target_folder = os.path.join('plsa',collection_name)     # папка с данными BigArtm: батч коллекции и словарь
+target_folder = os.path.join('target',collection_name)     # папка с данными BigArtm: батч коллекции и словарь
 csv_folder = 'csv'                                       # папка для csv файлов матриц тета и фи
 logs_dir = 'logs'                                        # папка с логами
-bigartm_logs_dir = 'bigartm'                             # BigArtm internal logs specific dir
+collection_logs_dir = os.path.join(logs_dir,collection_name)      # BigArtm internal logs specific dir
 batches_pathname = os.path.join(target_folder,"*.batch")
 
 # ===================================================
@@ -70,29 +70,25 @@ batches_pathname = os.path.join(target_folder,"*.batch")
 # создать папку logs_dir, если её нет
 if not os.path.exists(logs_dir):
     os.makedirs(logs_dir)
-
-bigartm_logs_path = os.path.join(logs_dir,bigartm_logs_dir)
-if not os.path.exists(bigartm_logs_path):
-    os.makedirs(bigartm_logs_path)
+if not os.path.exists(collection_logs_dir):
+    os.makedirs(collection_logs_dir)
 
 if not os.path.exists(target_folder):
     os.makedirs(target_folder)
 
-# TODO Костыль: подправить логику
-# создать папку logs_dir, если её нет
 if os.path.exists(csv_folder):
-    # удалить рекурсивно содержимое? папки
+    # если папка существует,
+    # удалить её рекурсивно
     shutil.rmtree(csv_folder)
-# а потом создать папку
-if not os.path.exists(csv_folder):
-    os.makedirs(csv_folder)
+# а потом создать снова
+os.makedirs(csv_folder)
 
 # Moving BigArtm internal logs to specific dir
 for filename in os.listdir('./'):
     if os.path.isfile(filename) and filename.startswith('..'):
         # If you specify the full path to the destination (not just the directory)
         # then shutil.move will overwrite any existing file
-        shutil.move(os.path.join('./', filename), os.path.join(bigartm_logs_path, filename))
+        shutil.move(os.path.join('./', filename), os.path.join(collection_logs_dir, filename))
 
 # для надежности принудидельно удалим symlink на лог
 # это происходит походу только в Linux

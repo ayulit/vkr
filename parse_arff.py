@@ -201,7 +201,10 @@ class Parse_ARFF:
             for term in _input.identifiers[1:_feature_num+1]:
                 print >> f, term                               # пишем названия терминов
             for _class in _input.identifiers[_feature_num+1:]:
-                print >> f, _class,'@class'                    # пишем названия классов со спецметкой для BigARTM
+                # TODO Говнокод: поправить!
+                _mod_class1 = _class.replace(",","")
+                _mod_class2 = _mod_class1.replace(" ","_")
+                print >> f, _mod_class2,'@class'                    # пишем названия классов со спецметкой для BigARTM
 
             f.close()
 

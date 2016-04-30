@@ -19,7 +19,7 @@ import pickle
 from sklearn.multiclass import OneVsOneClassifier
 from sklearn.linear_model import SGDClassifier as SGDC
 from sklearn.linear_model import LogisticRegression as LR
-from sklearn.preprocessing import MultiLabelBinarizer as mb
+# from sklearn.preprocessing import MultiLabelBinarizer as mb
 from sklearn import metrics
 
 

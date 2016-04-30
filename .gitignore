@@ -66,3 +66,8 @@ target/
 
 #JetBrains PyCahrm xml scheme
 .idea/
+
+#Data
+rawdata
+train
+test

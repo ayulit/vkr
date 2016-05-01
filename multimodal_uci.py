@@ -68,10 +68,10 @@ with artm.library.MasterComponent() as master:
     # ===================================================
 
     # Create one top-token score per each class_id (модальности)
-    default_top_tokens_score = master.CreateTopTokensScore(class_id='@default')    # топ токенов документа
+    default_top_tokens_score = master.CreateTopTokensScore(class_id='@default_class')    # топ токенов документа
     alpha_top_tokens_score = master.CreateTopTokensScore(class_id='@class')        # топ диагнозов
 
-    default_sparsity = master.CreateSparsityPhiScore(class_id='@default')
+    default_sparsity = master.CreateSparsityPhiScore(class_id='@default_class')
     alpha_sparsity = master.CreateSparsityPhiScore(class_id='@class')
 
     sparsity_theta_score = master.CreateSparsityThetaScore()
@@ -95,7 +95,7 @@ with artm.library.MasterComponent() as master:
 
     # Configure the model
     model = master.CreateModel(topics_count=_topics_count, inner_iterations_count=10,
-                               class_ids=('@default', '@class'),
+                               class_ids=('@default_class', '@class'),
                                class_weights=(1.00, 1.00))
     #model.EnableRegularizer(smsp_theta_reg, -0.1)
     #model.EnableRegularizer(smsp_phi_reg, -0.2)
@@ -115,7 +115,9 @@ with artm.library.MasterComponent() as master:
 
 
     # Retrieve and visualize top tokens in each topic
+    print 'default_class'
     artm.library.Visualizers.PrintTopTokensScore(default_top_tokens_score.GetValue(model))
+    print 'class'
     artm.library.Visualizers.PrintTopTokensScore(alpha_top_tokens_score.GetValue(model))
     artm.library.Visualizers.PrintThetaSnippetScore(theta_snippet_score.GetValue(model))
 

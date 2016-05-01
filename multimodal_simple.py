@@ -126,7 +126,9 @@ with artm.library.MasterComponent() as master:
         model.Synchronize()  # synchronize model
 
     # Retrieve and visualize top tokens in each topic
+    print 'body'
     artm.library.Visualizers.PrintTopTokensScore(bd_top_tokens_score.GetValue(model))
+    print 'keywords'
     artm.library.Visualizers.PrintTopTokensScore(kw_top_tokens_score.GetValue(model))
     artm.library.Visualizers.PrintThetaSnippetScore(theta_snippet_score.GetValue(model))
 

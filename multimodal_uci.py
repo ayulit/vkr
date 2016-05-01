@@ -38,13 +38,14 @@ if batches_found == 0:
     collection_parser_config.target_folder = target_folder
     collection_parser_config.dictionary_file_name = 'dictionary'
 
-    with open(collection_parser_config.vocab_file_path) as f:  # открываем файл словаря коллекции
-        index = 0
-        for line in f:  #  цикл по всем словам
-          if (index < 1000):
-              collection_parser_config.cooccurrence_token.append(line.rstrip())
-              index += 1
-    collection_parser_config.gather_cooc = True
+    # TODO зачем это?
+    #with open(collection_parser_config.vocab_file_path) as f:  # открываем файл словаря коллекции
+    #    index = 0
+    #    for line in f:  #  цикл по всем словам
+    #      if (index < 1000):
+    #          collection_parser_config.cooccurrence_token.append(line.rstrip())
+    #          index += 1
+    #collection_parser_config.gather_cooc = True
 
     # это dictionary
     unique_tokens = artm.library.Library().ParseCollection(collection_parser_config)

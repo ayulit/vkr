@@ -40,7 +40,7 @@ def print_measures(model_plsa, model_artm):
     plt.xlabel('Iterations count')
     plt.ylabel('PLSA perp. (blue), ARTM perp. (red)')
     plt.grid(True)
-    plt.show()
+    #plt.show()
 
 collection_name = 'kos'
 _dictionary_name = 'dictionary'
@@ -105,3 +105,56 @@ model_plsa.fit_offline(batch_vectorizer=batch_vectorizer, num_collection_passes=
 model_artm.fit_offline(batch_vectorizer=batch_vectorizer, num_collection_passes=15)
 
 print_measures(model_plsa, model_artm)
+
+# update tau_coefficients of regularizers in Model
+model_artm.regularizers['SparsePhi'].tau = -0.2
+model_artm.regularizers['SparseTheta'].tau = -0.2
+model_artm.regularizers['DecorrelatorPhi'].tau = 2.5e+5
+
+model_plsa.scores.add(artm.TopTokensScore(name='TopTokensScore', num_tokens=6))
+model_artm.scores.add(artm.TopTokensScore(name='TopTokensScore', num_tokens=6))
+
+model_plsa.fit_offline(batch_vectorizer=batch_vectorizer, num_collection_passes=25)
+model_artm.fit_offline(batch_vectorizer=batch_vectorizer, num_collection_passes=25)
+
+print_measures(model_plsa, model_artm)
+
+plt.plot(xrange(model_plsa.num_phi_updates), model_plsa.score_tracker['SparsityPhiScore'].value, 'b--',
+                 xrange(model_artm.num_phi_updates), model_artm.score_tracker['SparsityPhiScore'].value, 'r--', linewidth=2)
+plt.xlabel('Iterations count')
+plt.ylabel('PLSA Phi sp. (blue), ARTM Phi sp. (red)')
+plt.grid(True)
+#plt.show()
+
+plt.plot(xrange(model_plsa.num_phi_updates), model_plsa.score_tracker['SparsityThetaScore'].value, 'b--',
+                 xrange(model_artm.num_phi_updates), model_artm.score_tracker['SparsityThetaScore'].value, 'r--', linewidth=2)
+plt.xlabel('Iterations count')
+plt.ylabel('PLSA Theta sp. (blue), ARTM Theta sp. (red)')
+plt.grid(True)
+#plt.show()
+
+for topic_name in model_plsa.topic_names:
+    print topic_name + ': ',
+    print model_plsa.score_tracker['TopTokensScore'].last_topic_info[topic_name].tokens
+
+for topic_name in model_artm.topic_names:
+    print topic_name + ': ',
+    print model_artm.score_tracker['TopTokensScore'].last_topic_info[topic_name].tokens
+
+print model_artm.phi_
+
+# SAVE & LOAD
+
+# Save the model to disk
+print 'Saving model...\n'
+model_artm.save(filename=os.path.join(target_folder, 'kos_artm_model'))  # save the model to disk
+
+# TODO Load saved model into new instance - надо все понять как это работает!
+print 'Loading model...\n'
+model = artm.ARTM(topic_names=[])         # create new model
+model.load(filename=os.path.join(target_folder, 'kos_artm_model'))     # load saved model into new instance
+
+theta_matrix = model_artm.get_theta()
+print theta_matrix
+
+# Test on test data

@@ -12,7 +12,7 @@ pa = Parse_ARFF()
 
 corpus_data_folder = os.path.join('rawdata','OHSUMED')
 arff_data_folder = os.path.join(corpus_data_folder,'arff')
-arff_data_file = os.path.join(arff_data_folder,'quant_OHSUMED_test_87.txt')
+arff_data_file = os.path.join(arff_data_folder,'quant_OHSUMED_train.arff')
 
 #pa.convert_arff(arff_data_folder)
 #data_object = pa.make_csr(pa.read_arff(arff_data_file))

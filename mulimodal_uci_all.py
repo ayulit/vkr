@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Эксперимент по обработке данных UCI с мультимодальностью
 
-   Для начала коллекция представлена данными quant_OHSUMED_test_87.txt
+   Коллекция представлена данными quant_OHSUMED_train.arff
 
 """
 
@@ -17,12 +17,11 @@ import shutil
 # Инициализация
 # ===================================================
 
-collection_name = 'banks'                                # название коллекции
-labels_class = '@labels'
+collection_name = 'ohsumed'                                # название коллекции
 train_data_folder = os.path.join('train',collection_name)  # папка с обучающей выборкой
 target_folder = os.path.join('target',collection_name)
 
-_topics_count = 3
+_topics_count = 88
 
 # ===================================================
 # Конфигурация парсера ОБУЧАЮЩЕЙ коллекции
@@ -53,12 +52,6 @@ else:
 
 # Create master component and infer topic model
 with artm.library.MasterComponent() as master:
-
-    # Без этих 2-х строк тета-матрица будет пуста!
-    master.config().cache_theta = True
-    master.Reconfigure()
-
-
     # Create dictionary with tokens frequencies
     master.ImportDictionary('dictionary', os.path.join(target_folder, 'dictionary'))
 
@@ -66,19 +59,17 @@ with artm.library.MasterComponent() as master:
     # Конфигурирование базовых показателей score
     # ===================================================
 
-    perplexity_score = master.CreatePerplexityScore(class_ids=['@default_class',labels_class])
-
     # Create one top-token score per each class_id (модальности)
     default_top_tokens_score = master.CreateTopTokensScore(class_id='@default_class')    # топ токенов документа
-    alpha_top_tokens_score = master.CreateTopTokensScore(class_id=labels_class)        # топ диагнозов
+    alpha_top_tokens_score = master.CreateTopTokensScore(class_id='@class')        # топ диагнозов
 
-    default_sparsity = master.CreateSparsityPhiScore(class_id='@default_class')
-    alpha_sparsity = master.CreateSparsityPhiScore(class_id=labels_class)
+    #default_sparsity = master.CreateSparsityPhiScore(class_id='@default_class')
+    #alpha_sparsity = master.CreateSparsityPhiScore(class_id='@class')
 
-    sparsity_theta_score = master.CreateSparsityThetaScore()
+    #sparsity_theta_score = master.CreateSparsityThetaScore()
     theta_snippet_score = master.CreateThetaSnippetScore()
 
-
+    #perplexity_score = master.CreatePerplexityScore()
     #sparsity_phi_score = master.CreateSparsityPhiScore()
     #top_tokens_score = master.CreateTopTokensScore()
 
@@ -96,21 +87,23 @@ with artm.library.MasterComponent() as master:
 
     # Configure the model
     model = master.CreateModel(topics_count=_topics_count, inner_iterations_count=10,
-                               class_ids=('@default_class', labels_class),
+                               class_ids=('@default_class', '@class'),
                                class_weights=(1.00, 1.00))
+
     #model.EnableRegularizer(smsp_theta_reg, -0.1)
     #model.EnableRegularizer(smsp_phi_reg, -0.2)
     #model.EnableRegularizer(decorrelator_reg, 1000000)
+
     model.Initialize('dictionary')       # Setup initial approximation for Phi matrix.
 
-    # Infer the model in 10 passes over the batch
-    for iteration in range(0, 8):
+    # Infer the model in passes over the batch
+    for iteration in range(0, 10):
         master.InvokeIteration(disk_path=target_folder)  # Invoke one scan over all batches,
         master.WaitIdle()                                # and wait until it completes.
         model.Synchronize()                              # Synchronize topic model.
 
-        print "Iter#" + str(iteration),
-        print ": Perplexity = %.3f" % perplexity_score.GetValue(model).value
+        #print "Iter#" + str(iteration),
+        #print ": Perplexity = %.3f" % perplexity_score.GetValue(model).value,
         #print ", Phi sparsity = %.3f" % sparsity_phi_score.GetValue(model).value,
         #print ", Theta sparsity = %.3f" % sparsity_theta_score.GetValue(model).value
 
@@ -118,8 +111,6 @@ with artm.library.MasterComponent() as master:
     # Retrieve and visualize top tokens in each topic
     print 'default_class'
     artm.library.Visualizers.PrintTopTokensScore(default_top_tokens_score.GetValue(model))
-    print labels_class
+    print 'class'
     artm.library.Visualizers.PrintTopTokensScore(alpha_top_tokens_score.GetValue(model))
     artm.library.Visualizers.PrintThetaSnippetScore(theta_snippet_score.GetValue(model))
-
-

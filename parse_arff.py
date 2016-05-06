@@ -204,7 +204,7 @@ class Parse_ARFF:
                 # TODO Говнокод: поправить!
                 _mod_class1 = _class.replace(",","")
                 _mod_class2 = _mod_class1.replace(" ","_")
-                print >> f, _mod_class2,'@class'                    # пишем названия классов со спецметкой для BigARTM
+                print >> f, _mod_class2,'@labels'               # пишем названия классов со спецметкой для BigARTM
 
             f.close()
 

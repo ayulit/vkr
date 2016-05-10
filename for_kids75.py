@@ -16,18 +16,23 @@ import matplotlib.pyplot as plt
 
 collection_name = 'ohsumed'
 train_data_folder = os.path.join('train', collection_name)
+test_data_folder = os.path.join('test', collection_name)
+
 target_folder = os.path.join('target', collection_name)
+target_train = os.path.join(target_folder, 'train')
+target_test = os.path.join(target_folder, 'test')
+
 
 dictionary_name = 'dictionary'
 dictionary_filename = dictionary_name + '.dict'
-dictionary_path = os.path.join(target_folder, dictionary_filename)
+dictionary_path = os.path.join(target_train, dictionary_filename)
 
 dictionary_filename_txt = dictionary_name + '.txt'
-dictionary_path_txt = os.path.join(target_folder, dictionary_filename_txt)
+dictionary_path_txt = os.path.join(target_train, dictionary_filename_txt)
 
 
 batch_vectorizer = None
-batches_found = len(glob.glob(os.path.join(target_folder, '*.batch')))
+batches_found = len(glob.glob(os.path.join(target_train, '*.batch')))
 
 # ===================================================
 # ВВЕДЕНИЕ
@@ -39,12 +44,12 @@ if batches_found < 1:
     batch_vectorizer = artm.BatchVectorizer(data_path=train_data_folder,
                                             data_format='bow_uci',
                                             collection_name=collection_name,
-                                            target_folder=target_folder)
+                                            target_folder=target_train)
     print " OK."
 else:
     print "Found " + str(batches_found) + " batches, using them."
     # создаем объект BatchVectorizer на основе имеющихся батчей
-    batch_vectorizer = artm.BatchVectorizer(data_path=target_folder, data_format='batches')
+    batch_vectorizer = artm.BatchVectorizer(data_path=target_train, data_format='batches')
 
 # как ни уверяют разработчики в туториале, создать просто так объект Dictionary тут не получится,
 # поэтому перед созданием этого объекта зачем то нужно создавать хоть какую, но модель
@@ -55,7 +60,7 @@ model_for_dic = artm.ARTM()
 if not os.path.isfile(dictionary_path):
     # собираем словарь
     model_for_dic.gather_dictionary(dictionary_target_name=dictionary_name,
-                                    data_path=target_folder,
+                                    data_path=target_train,
                                     vocab_file_path=os.path.join(train_data_folder, 'vocab.' + collection_name + '.txt'))
     # сохраняем словарь в бинарном виде (автоматом подставляется расширение .dict)
     model_for_dic.save_dictionary(dictionary_name=dictionary_name, dictionary_path=dictionary_path)
@@ -204,3 +209,30 @@ saved_top_tokens_lab = model.score_tracker['top_tokens_score_lab'].last_topic_in
 for topic_name in model.topic_names:
     print topic_name + ': ',
     print saved_top_tokens_lab[topic_name].tokens
+
+
+batch_vectorizer_test = None
+batches_found = len(glob.glob(os.path.join(target_test, '*.batch')))
+
+if False:
+
+    # ===================================================
+    # КЛАССИФИКАЦИЯ
+    # ===================================================
+
+    if batches_found < 1:
+        print "No TEST batches found, parsing them from textual collection...",
+        # создаем из UCI батчи и сохраняем их в traget folder
+        batch_vectorizer_test = artm.BatchVectorizer(data_path=test_data_folder,
+                                                data_format='bow_uci',
+                                                collection_name=collection_name,
+                                                target_folder=target_test)
+        print " OK."
+    else:
+        print "Found " + str(batches_found) + " batches, using them."
+        # создаем объект BatchVectorizer на основе имеющихся батчей
+        batch_vectorizer_test = artm.BatchVectorizer(data_path=target_test, data_format='batches')
+
+    p_cd_test = model.transform(batch_vectorizer=batch_vectorizer_test, predict_class_id='@labels')
+
+    print p_cd_test

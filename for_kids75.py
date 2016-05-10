@@ -14,12 +14,17 @@ import os
 import glob
 import matplotlib.pyplot as plt
 
-collection_name = 'kos'
+collection_name = 'ohsumed'
 train_data_folder = os.path.join('train', collection_name)
 target_folder = os.path.join('target', collection_name)
+
 dictionary_name = 'dictionary'
 dictionary_filename = dictionary_name + '.dict'
 dictionary_path = os.path.join(target_folder, dictionary_filename)
+
+dictionary_filename_txt = dictionary_name + '.txt'
+dictionary_path_txt = os.path.join(target_folder, dictionary_filename_txt)
+
 
 batch_vectorizer = None
 batches_found = len(glob.glob(os.path.join(target_folder, '*.batch')))
@@ -54,6 +59,8 @@ if not os.path.isfile(dictionary_path):
                                     vocab_file_path=os.path.join(train_data_folder, 'vocab.' + collection_name + '.txt'))
     # сохраняем словарь в бинарном виде (автоматом подставляется расширение .dict)
     model_for_dic.save_dictionary(dictionary_name=dictionary_name, dictionary_path=dictionary_path)
+
+    model_for_dic.save_text_dictionary(dictionary_name=dictionary_name, dictionary_path=dictionary_path_txt)
 
 if False:
 
@@ -103,9 +110,9 @@ if False:
     plt.grid(True)
     #plt.show()
 
-    # ===================================================
-    # РАЗДЕЛ 2: Регуляризация модели PLSA и новые метрики
-    # ===================================================
+# ===================================================
+# РАЗДЕЛ 2: Регуляризация модели PLSA и новые метрики
+# ===================================================
 
     model = artm.ARTM(num_topics=20, cache_theta=False) # при cache_theta=False Тета-матрица не хранится
     model.load_dictionary(dictionary_name=dictionary_name, dictionary_path=dictionary_path)
@@ -141,6 +148,7 @@ if False:
     # добавляем регуляризаторы
     model.regularizers.add(artm.SmoothSparsePhiRegularizer(name='sparse_phi_regularizer'))
     model.regularizers.add(artm.SmoothSparseThetaRegularizer(name='sparse_theta_regularizer'))
+    # декорелляция: делает темы как можно более различными
     model.regularizers.add(artm.DecorrelatorPhiRegularizer(name='decorrelator_phi_regularizer'))
 
     # установка параметров регуляризаторов
@@ -165,3 +173,34 @@ if False:
 # РАЗДЕЛ 3: Мультимодальность + регуляризация + качество. ARTM.transform()
 # ===================================================
 
+# создаем модель с весами модальности в конструкторе
+# метки классов в 5раз более влиятельны, чем обычные слова
+model = artm.ARTM(num_topics=20, class_ids={'@default_class': 1.0, '@labels': 5.0})
+
+# добавим в модель метрику разреженность Φ для модальности меток классов
+model.scores.add(artm.SparsityPhiScore(name='sparsity_phi_score', class_id='@labels'))
+# так же регуляризаторы декорреляции тем для каждой из модальностей
+#model.regularizers.add(artm.DecorrelatorPhiRegularizer(name='decorrelator_phi_def', class_ids=['@default_class']))
+#model.regularizers.add(artm.DecorrelatorPhiRegularizer(name='decorrelator_phi_lab', class_ids=['@labels']))
+
+# добавим в модель метрику топа токенов для каждой из модальностей
+model.scores.add(artm.TopTokensScore(name='top_tokens_score_def', num_tokens = 6,  class_id='@default_class'))
+model.scores.add(artm.TopTokensScore(name='top_tokens_score_lab', num_tokens = 6,  class_id='@labels'))
+
+# установка параметров регуляризаторов
+#model.regularizers['decorrelator_phi_def'].tau = 1e+5
+#model.regularizers['decorrelator_phi_lab'].tau = 1e+5
+
+# после чего запустим процесс обучения модели
+model.fit_offline(batch_vectorizer=batch_vectorizer, num_collection_passes=10)
+
+# зырим на метрики
+print model.score_tracker['sparsity_phi_score'].value    # .last_value
+saved_top_tokens_def = model.score_tracker['top_tokens_score_def'].last_topic_info
+for topic_name in model.topic_names:
+    print topic_name + ': ',
+    print saved_top_tokens_def[topic_name].tokens
+saved_top_tokens_lab = model.score_tracker['top_tokens_score_lab'].last_topic_info
+for topic_name in model.topic_names:
+    print topic_name + ': ',
+    print saved_top_tokens_lab[topic_name].tokens

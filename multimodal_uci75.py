@@ -1,81 +1,105 @@
 # -*- coding: utf-8 -*-
 """Эксперимент по обработке данных UCI с мультимодальностью для BigARTM v 0.7.5
 
-   Для начала коллекция представлена данными quant_OHSUMED_test_87.txt
-
-   Как мне надо не работает
+   Работает с коллекциями BANKS и OHUSMED
 
 """
 
-import glob
+import artm
 import os
+import glob
 import matplotlib.pyplot as plt
 
-import artm
-
-
-
-
-collection_name = 'kos'
-_dictionary_name = 'dictionary'
-dictionary_filename = _dictionary_name + '.dict'
-target_folder = os.path.join('target', collection_name)
+collection_name = 'banks'
 train_data_folder = os.path.join('train', collection_name)  # папка с обучающей выборкой
-_dictionary_path = os.path.join(target_folder, dictionary_filename )
 
+target_folder = os.path.join('target', collection_name)
+target_train = os.path.join(target_folder, 'train')
 
-_topics_count = 3
-_tau_phi = -0.1
+dictionary_name = 'dictionary'
+dictionary_filename = dictionary_name + '.dict'
+dictionary_path = os.path.join(target_train, dictionary_filename)
+
+dictionary_filename_txt = dictionary_name + '.txt'
+dictionary_path_txt = os.path.join(target_train, dictionary_filename_txt)
+
+#_topics_count = 3
+#_tau_phi = -0.1
 #_tau_decor = 1.5e+5
 #_tau_theta = -0.15
 
 batch_vectorizer = None  # инициализция ссылки на BatchVectorizer
-
 batches_found = len(glob.glob(os.path.join(target_folder, '*.batch')))
 if batches_found < 1:
     print "No batches found, parsing them from textual collection...",
+    # создаем из UCI батчи и сохраняем их в traget folder
     batch_vectorizer = artm.BatchVectorizer(data_path=train_data_folder,
                                             data_format='bow_uci',
                                             collection_name=collection_name,
-                                            target_folder=target_folder)
+                                            target_folder=target_train)
     print " OK."
 else:
     print "Found " + str(batches_found) + " batches, using them."
-    batch_vectorizer = artm.BatchVectorizer(data_path=target_folder, data_format='batches')
+    # создаем из UCI батчи и сохраняем их в traget folder
+    batch_vectorizer = artm.BatchVectorizer(data_path=target_train, data_format='batches')
+
+# теперь разберемся со словарем
+
+# как ни уверяют разработчики в туториале, создать просто так объект Dictionary тут не получится,
+# поэтому перед созданием этого объекта зачем то нужно создавать хоть какую, но модель
+model_for_dic = artm.ARTM()
+
+# и только потом создаем словарь, если его нет
+# vocab_file подсовываем для соблюдения порядка в словаре bigartm
+if not os.path.isfile(dictionary_path):
+    # собираем словарь
+    model_for_dic.gather_dictionary(dictionary_target_name=dictionary_name,
+                                    data_path=target_train,
+                                    vocab_file_path=os.path.join(train_data_folder, 'vocab.' + collection_name + '.txt'))
+    # сохраняем словарь в бинарном виде (автоматом подставляется расширение .dict)
+    model_for_dic.save_dictionary(dictionary_name=dictionary_name, dictionary_path=dictionary_path)
+    # сохраняем словарь в текстовом виде
+    model_for_dic.save_text_dictionary(dictionary_name=dictionary_name, dictionary_path=dictionary_path_txt)
 
 
-model_artm = artm.ARTM(topic_names=['topic_{}'.format(i) for i in xrange(_topics_count)],
-                       class_ids={'@default_class':1.00, '@class':1.00})
+# создаем модель с весами модальности в конструкторе
+# метки классов в 10 раз более влиятельны, чем обычные слова
+model_artm = artm.ARTM(num_topics=3, class_ids={'@default_class': 1.0, '@labels': 10.0})
 
-if not os.path.isfile(_dictionary_path):
-    model_artm.gather_dictionary(_dictionary_name, batch_vectorizer.data_path)
-    model_artm.save_dictionary(dictionary_name=_dictionary_name, dictionary_path=_dictionary_path)
 
-model_artm.load_dictionary(dictionary_name=_dictionary_name, dictionary_path=_dictionary_path)
-model_artm.initialize(dictionary_name=_dictionary_name)
+# вот это получается и не надо, т.к. в общем случае словарь не нужен, а нужны только батчи
+#model_artm.load_dictionary(dictionary_name=_dictionary_name, dictionary_path=_dictionary_path)
+#model_artm.initialize(dictionary_name=_dictionary_name)
 
-model_artm.scores.add(artm.TopTokensScore(name='TopTokensScoreDefault', num_tokens=6, class_id='@default_class'))
-model_artm.scores.add(artm.TopTokensScore(name='TopTokensScoreClass', num_tokens=6, class_id='@class'))
+# добавим в модель метрику топа токенов для каждой из модальностей
+model_artm.scores.add(artm.TopTokensScore(name='top_tokens_score_def', num_tokens = 6,  class_id='@default_class'))
+model_artm.scores.add(artm.TopTokensScore(name='top_tokens_score_lab', num_tokens = 6,  class_id='@labels'))
 
-model_artm.scores.add(artm.SparsityPhiScore(name='SparsityPhiScoreDefault', class_id='@default_class'))
-model_artm.scores.add(artm.SparsityPhiScore(name='SparsityPhiScoreClass', class_id='@class'))
+# добавим в модель метрику разреженность Φ для каждой из модальностей
+model_artm.scores.add(artm.SparsityPhiScore(name='sparsity_phi_score_def', class_id='@default_class'))
+model_artm.scores.add(artm.SparsityPhiScore(name='sparsity_phi_score_lab', class_id='@labels'))
 
+# в SparsityThetaScore нельзя добавить инфу о классах!
 model_artm.scores.add(artm.SparsityThetaScore(name='SparsityThetaScore')) # TODO почему то одна
 
-model_artm.num_document_passes = 10 # TODO соотнести со старым кодом, хотя это есть на входе fit_offline
-model_artm.fit_offline(batch_vectorizer=batch_vectorizer, num_collection_passes=8)
+# Обучим модель, установив 10 проходов по документу и сделав еще 8 итераций по коллекции
+# TODO соотнести со старым кодом
+model_artm.fit_offline(batch_vectorizer=batch_vectorizer, num_collection_passes=8, num_document_passes=10)
 
+# зырим на метрики
 
-print model_artm.score_tracker['TopTokensScoreDefault'].last_topic_info['topic_0'].tokens
-
+print 'sparsity_phi_score_def'
+print model_artm.score_tracker['sparsity_phi_score_def'].value    # .last_value
+print 'top_tokens_score_lab'
+print model_artm.score_tracker['sparsity_phi_score_lab'].value    # .last_value
 # Retrieve and visualize top tokens in each topic
-print 'TopTokensScore default_class'
+saved_top_tokens_def = model_artm.score_tracker['top_tokens_score_def'].last_topic_info
+print 'top_tokens_score_def'
 for topic_name in model_artm.topic_names:
     print topic_name + ': ',
-    print model_artm.score_tracker['TopTokensScoreDefault'].last_topic_info[topic_name].tokens
-
-print 'TopTokensScore class'
+    print saved_top_tokens_def[topic_name].tokens
+saved_top_tokens_lab = model_artm.score_tracker['top_tokens_score_lab'].last_topic_info
+print 'top_tokens_score_lab'
 for topic_name in model_artm.topic_names:
     print topic_name + ': ',
-    print model_artm.score_tracker['TopTokensScoreClass'].last_topic_info[topic_name].tokens
-
+    print saved_top_tokens_lab[topic_name].tokens

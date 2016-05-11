@@ -114,6 +114,7 @@ model_artm.regularizers['DecorrelatorPhi'].tau = 2.5e+5
 model_plsa.scores.add(artm.TopTokensScore(name='TopTokensScore', num_tokens=6))
 model_artm.scores.add(artm.TopTokensScore(name='TopTokensScore', num_tokens=6))
 
+# дообучим модель
 model_plsa.fit_offline(batch_vectorizer=batch_vectorizer, num_collection_passes=25)
 model_artm.fit_offline(batch_vectorizer=batch_vectorizer, num_collection_passes=25)
 

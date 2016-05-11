@@ -10,7 +10,7 @@ import os
 import glob
 import matplotlib.pyplot as plt
 
-collection_name = 'banks'
+collection_name = 'ohsumed'
 train_data_folder = os.path.join('train', collection_name)  # папка с обучающей выборкой
 
 target_folder = os.path.join('target', collection_name)
@@ -64,7 +64,7 @@ if not os.path.isfile(dictionary_path):
 
 # создаем модель с весами модальности в конструкторе
 # метки классов в 10 раз более влиятельны, чем обычные слова
-model_artm = artm.ARTM(num_topics=3, class_ids={'@default_class': 1.0, '@labels': 10.0})
+model_artm = artm.ARTM(num_topics=20, class_ids={'@default_class': 1.0, '@labels': 10.0})
 
 
 # вот это получается и не надо, т.к. в общем случае словарь не нужен, а нужны только батчи
@@ -82,9 +82,9 @@ model_artm.scores.add(artm.SparsityPhiScore(name='sparsity_phi_score_lab', class
 # в SparsityThetaScore нельзя добавить инфу о классах!
 model_artm.scores.add(artm.SparsityThetaScore(name='SparsityThetaScore')) # TODO почему то одна
 
-# Обучим модель, установив 10 проходов по документу и сделав еще 8 итераций по коллекции
+# Обучим модель, установив 10 проходов по документу и сделав еще 10 итераций по коллекции
 # TODO соотнести со старым кодом
-model_artm.fit_offline(batch_vectorizer=batch_vectorizer, num_collection_passes=8, num_document_passes=10)
+model_artm.fit_offline(batch_vectorizer=batch_vectorizer, num_collection_passes=10, num_document_passes=10)
 
 # зырим на метрики
 
